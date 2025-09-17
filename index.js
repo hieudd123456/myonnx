@@ -3,7 +3,7 @@ const express = require('express');
 const multer = require("multer");
 const sharp = require("sharp");
 const fs = require("fs");
-
+const port = process.env.PORT || 8000;
 /**
  * Main function that setups and starts a
  * web server on port 8080
@@ -29,8 +29,8 @@ function main() {
         res.json(boxes);
     });
 
-    app.listen(8080, () => {
-        console.log(`Server is listening on port 8080`)
+    app.listen(port, () => {
+        console.log(`Server is listening on port `+port)
     });
 }
 
