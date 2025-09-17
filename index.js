@@ -8,7 +8,10 @@ const port = process.env.PORT || 8000;
  * Main function that setups and starts a
  * web server on port 8080
  */
-function main() {
+let model; // Khai báo biến toàn cục
+
+async function main() {
+    model = await ort.InferenceSession.create("yolo11n.onnx"); // Khởi tạo 1 lần
     const app = express();
     const upload = multer();
 
@@ -77,9 +80,8 @@ async function prepare_input(buf) {
  * @returns Raw output of neural network as a flat array of numbers
  */
 async function run_model(input) {
-    const model = await ort.InferenceSession.create("yolo11n.onnx");
     input = new ort.Tensor(Float32Array.from(input),[1, 3, 640, 640]);
-    const outputs = await model.run({images:input});
+    const outputs = await model.run({images:input}); // Dùng lại model đã khởi tạo
     return outputs["output0"].data;
 }
 
