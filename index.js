@@ -28,7 +28,9 @@ async function main() {
      * an array of bounding boxes in format [[x1,y1,x2,y2,object_type,probability],..] as a JSON
      */
     app.post('/detect', upload.single('image_file'), async function (req, res) {
+       
         const boxes = await detect_objects_on_image(req.file.buffer);
+        console.log("post('/detect'",boxes);
         res.json(boxes);
     });
 
@@ -97,7 +99,7 @@ function process_output(output, img_width, img_height) {
     let boxes = [];
     for (let index=0;index<8400;index++) {
         const [class_id,prob] = [...Array(80).keys()].map(col => [col, output[8400*(col+4)+index]]).reduce((accum, item) => item[1]>accum[1] ? item : accum,[0,0]);
-        if (prob < 0.5) {
+        if (prob < 0.3) {
             continue;
         }
         const label = yolo_classes[class_id];

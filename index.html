@@ -13,6 +13,8 @@
 </head>
 <body>
     <input id="uploadInput" type="file"/>
+    <button id="cameraBtn">Detect từ Camera</button>
+    <video id="video" style="display:none;" autoplay playsinline></video>
     <canvas></canvas>
     <script>
       /**
@@ -61,6 +63,84 @@
               });
           }
       }
+
+      // Thêm chức năng detect liên tục từ camera
+      const cameraBtn = document.getElementById("cameraBtn");
+      const video = document.getElementById("video");
+      const canvas = document.querySelector("canvas");
+      let detecting = false;
+
+      cameraBtn.onclick = async () => {
+        if (detecting) return;
+        detecting = true;
+        cameraBtn.disabled = true;
+        video.style.display = "block";
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+
+        video.onloadedmetadata = () => {
+          // Chỉ detect khi video đã có kích thước
+          detectFrame();
+        };
+
+        const ctx = canvas.getContext("2d");
+        async function detectFrame() {
+          if (!detecting) return;
+          if (video.videoWidth === 0 || video.videoHeight === 0) {
+            setTimeout(detectFrame, 100); // Đợi video sẵn sàng
+            return;
+          }
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+
+          const dataURL = canvas.toDataURL("image/jpeg");
+          if (!dataURL.startsWith("data:image/jpeg")) {
+            setTimeout(detectFrame, 100); // Đợi frame hợp lệ
+            return;
+          }
+          const byteString = atob(dataURL.split(',')[1]);
+          const mimeString = dataURL.split(',')[0].split(':')[1].split(';')[0];
+          const ab = new ArrayBuffer(byteString.length);
+          const ia = new Uint8Array(ab);
+          for (let i = 0; i < byteString.length; i++) {
+            ia[i] = byteString.charCodeAt(i);
+          }
+          const blob = new Blob([ab], { type: mimeString });
+
+          const data = new FormData();
+          data.append("image_file", blob, "frame.jpg");
+          const response = await fetch("/detect", {
+            method: "post",
+            body: data
+          });
+          const boxes = await response.json();
+          ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+          ctx.strokeStyle = "#00FF00";
+          ctx.lineWidth = 3;
+          ctx.font = "18px serif";
+          boxes.forEach(([x1, y1, x2, y2, label, prob]) => {
+            ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+            ctx.fillStyle = "#00ff00";
+            const text = `${label} (${(prob*100).toFixed(1)}%)`;
+            const width = ctx.measureText(text).width;
+            ctx.fillRect(x1, y1, width + 10, 25);
+            ctx.fillStyle = "#000000";
+            ctx.fillText(text, x1, y1 + 18);
+          });
+          setTimeout(detectFrame, 100);
+        }
+      };
+
+      // Tắt detect khi reload hoặc chuyển sang upload file
+      input.addEventListener("change", () => {
+        detecting = false;
+        cameraBtn.disabled = false;
+        video.style.display = "none";
+        if (video.srcObject) {
+          video.srcObject.getTracks().forEach(track => track.stop());
+        }
+      });
     </script>
 </body>
 </html>
